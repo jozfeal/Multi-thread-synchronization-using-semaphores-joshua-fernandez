@@ -82,43 +82,67 @@ public:
 /* global vars */
 const int bufferSize = 5;
 const int numPeopleType = 5; 
+int problemNumber = 1;
 
 /* semaphores are declared global so they can be accessed
  in main() and in thread routine. */
+
+// no-starve readers writers
 Lightswitch readSwitch;
 Semaphore roomEmpty(1);
 Semaphore turnstile(1);
 
+// writer priority readers writers
+Lightswitch writeSwitch;
+Semaphore noReaders(1);
+Semaphore noWriters(1);
+
 
 /*
-    Producer function 
+    Writer function 
 */
 void *Writer ( void *threadID )
 {
     // Thread number 
     int x = (long)threadID;
 
+    if (problemNumber == 1) {
     while( 1 )
     {
         sleep(3); // Slow the thread down a bit so we can see what is going on
         turnstile.wait();
-        roomEmpty.wait();
-            printf("Writer %d: writing\n", x);
-            fflush(stdout);
-        turnstile.signal();
+	     roomEmpty.wait();
+       	     printf("Writer %d: writing\n", x);
+             fflush(stdout);
+	turnstile.signal();
         roomEmpty.signal();
+    }
+    }
+
+    else {
+    while( 1 )
+    {
+        sleep(3);
+        writeSwitch.lock(noReaders);
+             noWriters.wait();
+                  printf("Writer %d: writing\n", x);
+                  fflush(stdout);
+             noWriters.signal();
+        writeSwitch.unlock(noReaders);
+    }
     }
 
 }
 
 /*
-    Consumer function 
+    Reader function 
 */
 void *Reader ( void *threadID )
 {
     // Thread number 
     int x = (long)threadID;
     
+    if (problemNumber == 1) {
     while( 1 )
     {
         turnstile.wait();
@@ -129,6 +153,20 @@ void *Reader ( void *threadID )
         readSwitch.unlock(roomEmpty);
         sleep(5);   // Slow the thread down a bit so we can see what is going on
     }
+    }
+
+    else {
+    while ( 1 )
+    {
+         noReaders.wait();
+             readSwitch.lock(noWriters);
+         noReaders.signal();
+             printf("Reader %d: reading \n", x);
+             fflush(stdout);
+	 readSwitch.unlock(noWriters);
+	 sleep(5);
+    }
+    }
 
 }
 
@@ -136,13 +174,13 @@ void *Reader ( void *threadID )
 int main(int argc, char **argv )
 {
     // get the problem number from the command line argument
-    int problem = int(stoi(argv[1]));
+    problemNumber = stol(argv[1]);
 
     pthread_t writerThread[ numPeopleType ];
     pthread_t readerThread[ numPeopleType ];
 
     // for the readers writers problems
-    if (problem == 1 or problem == 2) {
+    if (problemNumber == 1 or problemNumber == 2) {
     // Create the writers
     for( long w = 0; w < numPeopleType; w++ )
     {
@@ -169,7 +207,7 @@ int main(int argc, char **argv )
     }
 
     // for the philosophers problems
-    else if (problem == 3 or problem == 4) {
+    else if (problemNumber == 3 or problemNumber == 4) {
 	// philosophers
     }
 
