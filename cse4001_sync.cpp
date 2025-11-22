@@ -171,6 +171,80 @@ void *Reader ( void *threadID )
 }
 
 
+
+// dining philosophers helper functions
+Semaphore forks[5] = { Semaphore (1), Semaphore (1), Semaphore (1),
+	                    Semaphore (1), Semaphore (1) };
+Semaphore footman(4);
+int left(int i) { return i; }
+int right(int i ) { return (i + 1) % 5; }
+
+void get_forks(int i) {
+     // footman solution version
+     if (problemNumber == 3) {
+          footman.wait();
+          forks[right(i)].wait();
+          forks[left(i)].wait();
+     }
+
+     else {
+          // makes only the first philosopher left handed
+	  if (i == 0) {
+	       forks[left(i)].wait();
+	       forks[right(i)].wait();
+	  }
+	  else {
+               forks[right(i)].wait();
+               forks[left(i)].wait();
+	  }
+     }
+}
+
+void put_forks(int i) {
+     // footman solution version
+     if (problemNumber == 3) {
+          forks[right(i)].signal();
+          forks[left(i)].signal();
+          footman.signal();
+     }
+
+     else {
+          // makes only the first philosopher left handed
+          if (i == 0) {
+               forks[left(i)].signal();
+               forks[right(i)].signal();
+	  }
+          else {
+               forks[right(i)].signal();
+               forks[left(i)].signal();
+          }
+     }
+}
+
+/*
+    Philosopher function
+*/
+void *Philosopher ( void *threadID )
+{
+    // Thread numbenr
+    int x = (long)threadID;
+
+    while( 1 )
+    {
+	printf("Philosopher %d: thinking \n", x);
+        fflush(stdout);
+	
+	get_forks(x - 1);
+
+        printf("Philosopher %d: eating \n", x);
+        fflush(stdout);
+
+	put_forks(x - 1);
+        sleep(2);   // Slow the thread down a bit so we can see what is going on
+    }
+}
+
+
 int main(int argc, char **argv )
 {
     // get the problem number from the command line argument
@@ -208,7 +282,17 @@ int main(int argc, char **argv )
 
     // for the philosophers problems
     else if (problemNumber == 3 or problemNumber == 4) {
-	// philosophers
+    // Create the philosophers
+    for( long p = 0; p < numPeopleType; p++ )
+    {
+        int rc = pthread_create ( &writerThread[ p ], NULL,
+                                  Philosopher, (void *) (p+1) );
+        if (rc) {
+            printf("ERROR creating philosopher thread # %ld; \
+                    return code from pthread_create() is %d\n", p, rc);
+            exit(-1);
+        }
+    }
     }
 
     printf("Main: program completed. Exiting.\n");
